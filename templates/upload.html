@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+
+{% block title %}파일 업로드 - 공연 예매 통합 관리{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-12">
+        <h2>
+            <i class="bi bi-cloud-upload"></i> 예매 파일 업로드
+        </h2>
+        <p class="text-muted">
+            각 예매처에서 다운로드한 엑셀 파일을 업로드하세요. 자동으로 데이터를 분석하여 통합 데이터베이스에 저장합니다.
+        </p>
+    </div>
+</div>
+
+<!-- YES24 업로드 -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card border-success">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">
+                    <i class="bi bi-file-earmark-excel"></i> YES24 예매내역
+                </h5>
+            </div>
+            <div class="card-body">
+                <form id="yes24-form" class="upload-form">
+                    <div class="mb-3">
+                        <label class="form-label">엑셀 파일 선택 (.xlsx, .xls)</label>
+                        <input type="file" class="form-control" name="file" accept=".xlsx,.xls" required>
+                    </div>
+                    <div class="mb-3">
+                        <small class="text-muted">
+                            <i class="bi bi-info-circle"></i> 
+                            YES24에서 다운로드한 엑셀 파일을 선택하세요. 티켓번호가 'Y'로 시작합니다.
+                        </small>
+                    </div>
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-upload"></i> YES24 파일 업로드
+                    </button>
+                </form>
+                <div id="yes24-result" class="mt-3"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 인터파크 업로드 -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card border-warning">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0">
+                    <i class="bi bi-file-earmark-excel"></i> 인터파크 예매내역
+                </h5>
+            </div>
+            <div class="card-body">
+                <form id="interpark-form" class="upload-form">
+                    <div class="mb-3">
+                        <label class="form-label">엑셀 파일 선택 (.xlsx, .xls)</label>
+                        <input type="file" class="form-control" name="file" accept=".xlsx,.xls" required>
+                    </div>
+                    <div class="mb-3">
+                        <small class="text-muted">
+                            <i class="bi bi-info-circle"></i> 
+                            인터파크에서 다운로드한 엑셀 파일을 선택하세요. 티켓번호가 'T'로 시작합니다.
+                        </small>
+                    </div>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="bi bi-upload"></i> 인터파크 파일 업로드
+                    </button>
+                </form>
+                <div id="interpark-result" class="mt-3"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 티켓링크 업로드 -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card border-info">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">
+                    <i class="bi bi-file-earmark-excel"></i> 티켓링크 예매내역
+                </h5>
+            </div>
+            <div class="card-body">
+                <form id="ticketlink-form" class="upload-form">
+                    <div class="mb-3">
+                        <label class="form-label">엑셀 파일 선택 (.xlsx, .xls)</label>
+                        <input type="file" class="form-control" name="file" accept=".xlsx,.xls" required>
+                    </div>
+                    <div class="mb-3">
+                        <small class="text-muted">
+                            <i class="bi bi-info-circle"></i> 
+                            티켓링크에서 다운로드한 엑셀 파일을 선택하세요.
+                        </small>
+                    </div>
+                    <button type="submit" class="btn btn-info text-white">
+                        <i class="bi bi-upload"></i> 티켓링크 파일 업로드
+                    </button>
+                </form>
+                <div id="ticketlink-result" class="mt-3"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// 파일 업로드 처리 함수
+function handleUpload(formId, vendor, resultId) {
+    const form = document.getElementById(formId);
+    const resultDiv = document.getElementById(resultId);
+    
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const formData = new FormData(form);
+        const button = form.querySelector('button[type="submit"]');
+        const originalText = button.innerHTML;
+        
+        // 버튼 비활성화 및 로딩 표시
+        button.disabled = true;
+        button.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>처리 중...';
+        
+        // 결과 영역 초기화
+        resultDiv.innerHTML = '';
+        
+        try {
+            const response = await fetch(`/api/upload/${vendor}`, {
+                method: 'POST',
+                body: formData
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                // 성공 메시지
+                const stats = data.stats || {};
+                resultDiv.innerHTML = `
+                    <div class="alert alert-success">
+                        <h6 class="alert-heading">
+                            <i class="bi bi-check-circle"></i> ${data.message}
+                        </h6>
+                        <hr>
+                        <div class="row text-center">
+                            <div class="col-3">
+                                <strong>${stats.전체 || 0}</strong><br>
+                                <small>전체</small>
+                            </div>
+                            <div class="col-3">
+                                <strong class="text-success">${stats.성공 || 0}</strong><br>
+                                <small>성공</small>
+                            </div>
+                            <div class="col-3">
+                                <strong class="text-warning">${stats.중복 || 0}</strong><br>
+                                <small>중복</small>
+                            </div>
+                            <div class="col-3">
+                                <strong class="text-danger">${stats.실패 || 0}</strong><br>
+                                <small>실패</small>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                // 폼 초기화
+                form.reset();
+                
+                // 통합 리스트로 이동 제안
+                setTimeout(() => {
+                    if (confirm('통합 리스트 페이지로 이동하시겠습니까?')) {
+                        window.location.href = '/reservations';
+                    }
+                }, 1000);
+                
+            } else {
+                // 오류 메시지
+                resultDiv.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle"></i> 
+                        ${data.message || '업로드 실패'}
+                    </div>
+                `;
+            }
+            
+        } catch (error) {
+            resultDiv.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle"></i> 
+                    네트워크 오류: ${error.message}
+                </div>
+            `;
+        } finally {
+            // 버튼 복구
+            button.disabled = false;
+            button.innerHTML = originalText;
+        }
+    });
+}
+
+// 각 폼에 이벤트 리스너 등록
+handleUpload('yes24-form', 'yes24', 'yes24-result');
+handleUpload('interpark-form', 'interpark', 'interpark-result');
+handleUpload('ticketlink-form', 'ticketlink', 'ticketlink-result');
+</script>
+{% endblock %}

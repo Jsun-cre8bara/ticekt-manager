@@ -1,0 +1,350 @@
+{% extends "base.html" %}
+
+{% block title %}통합 리스트 - 공연 예매 통합 관리{% endblock %}
+
+{% block extra_css %}
+<style>
+    .table-wrapper {
+        overflow-x: auto;
+    }
+    .filter-section {
+        background-color: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+    .badge-yes24 { background-color: #28a745; }
+    .badge-interpark { background-color: #ffc107; color: #000; }
+    .badge-ticketlink { background-color: #17a2b8; }
+    .stats-box {
+        text-align: center;
+        padding: 15px;
+        border-radius: 8px;
+        background-color: white;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .stats-box h3 {
+        margin: 0;
+        font-size: 2rem;
+        color: #4a148c;
+    }
+    .stats-box p {
+        margin: 5px 0 0 0;
+        color: #666;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-12">
+        <h2>
+            <i class="bi bi-list-ul"></i> 통합 예매 리스트
+        </h2>
+        <p class="text-muted">
+            모든 예매처의 데이터를 한눈에 확인하고 관리하세요.
+        </p>
+    </div>
+</div>
+
+<!-- 통계 정보 -->
+<div class="row mb-4" id="stats-section">
+    <div class="col-md-3">
+        <div class="stats-box">
+            <h3 id="total-stat">{{ reservations|length }}</h3>
+            <p>전체 예매</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stats-box">
+            <h3 id="yes24-stat">{{ reservations|selectattr('출처', 'equalto', 'YES24')|list|length }}</h3>
+            <p>YES24</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stats-box">
+            <h3 id="interpark-stat">{{ reservations|selectattr('출처', 'equalto', '인터파크')|list|length }}</h3>
+            <p>인터파크</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stats-box">
+            <h3 id="ticketlink-stat">{{ reservations|selectattr('출처', 'equalto', '티켓링크')|list|length }}</h3>
+            <p>티켓링크</p>
+        </div>
+    </div>
+</div>
+
+<!-- 필터 및 검색 -->
+<div class="filter-section">
+    <div class="row">
+        <div class="col-md-3">
+            <label class="form-label">검색</label>
+            <input type="text" class="form-control" id="search-input" placeholder="공연명, 예매자, 티켓번호...">
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">예매처</label>
+            <select class="form-select" id="filter-vendor">
+                <option value="">전체</option>
+                <option value="YES24">YES24</option>
+                <option value="인터파크">인터파크</option>
+                <option value="티켓링크">티켓링크</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">공연일 시작</label>
+            <input type="date" class="form-control" id="filter-date-start">
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">공연일 종료</label>
+            <input type="date" class="form-control" id="filter-date-end">
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">&nbsp;</label>
+            <div class="d-grid gap-2">
+                <button class="btn btn-secondary" onclick="resetFilters()">
+                    <i class="bi bi-arrow-clockwise"></i> 초기화
+                </button>
+            </div>
+        </div>
+    </div>
+    <div class="row mt-3">
+        <div class="col-md-12">
+            <button class="btn btn-success" onclick="downloadExcel()">
+                <i class="bi bi-file-earmark-excel"></i> 엑셀 다운로드
+            </button>
+            <button class="btn btn-danger ms-2" onclick="deleteAll()" id="delete-all-btn">
+                <i class="bi bi-trash"></i> 전체 삭제
+            </button>
+            <span class="ms-3 text-muted">
+                <strong id="filtered-count">{{ reservations|length }}</strong>개 표시 중
+            </span>
+        </div>
+    </div>
+</div>
+
+<!-- 예매 리스트 테이블 -->
+<div class="card">
+    <div class="card-body">
+        <div class="table-wrapper">
+            <table class="table table-hover" id="reservations-table">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 50px;">No</th>
+                        <th>공연명</th>
+                        <th style="width: 110px;">공연일</th>
+                        <th style="width: 120px;">회차(시간)</th>
+                        <th>예매자</th>
+                        <th style="width: 130px;">티켓번호</th>
+                        <th>좌석</th>
+                        <th style="width: 90px;">가격</th>
+                        <th style="width: 120px;">연락처</th>
+                        <th style="width: 90px;">예매처</th>
+                        <th style="width: 80px;">액션</th>
+                    </tr>
+                </thead>
+                <tbody id="table-body">
+                    {% if reservations %}
+                        {% for r in reservations %}
+                        <tr data-id="{{ r.id }}" 
+                            data-vendor="{{ r.출처 }}" 
+                            data-date="{{ r.공연일 }}"
+                            data-search="{{ r.공연명 }} {{ r.예매자 }} {{ r.티켓번호 }}">
+                            <td>{{ loop.index }}</td>
+                            <td><strong>{{ r.공연명 }}</strong></td>
+                            <td>{{ r.공연일 }}</td>
+                            <td>{{ r.회차정보 }}</td>
+                            <td>{{ r.예매자 }}</td>
+                            <td><code>{{ r.티켓번호 }}</code></td>
+                            <td>{{ r.좌석정보 }}</td>
+                            <td>{{ r.가격 }}</td>
+                            <td>{{ r.전화번호 }}</td>
+                            <td>
+                                {% if r.출처 == 'YES24' %}
+                                    <span class="badge badge-yes24">{{ r.출처 }}</span>
+                                {% elif r.출처 == '인터파크' %}
+                                    <span class="badge badge-interpark">{{ r.출처 }}</span>
+                                {% else %}
+                                    <span class="badge badge-ticketlink">{{ r.출처 }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <button class="btn btn-sm btn-danger" onclick="deleteReservation({{ r.id }})">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr id="no-data-row">
+                            <td colspan="11" class="text-center text-muted py-4">
+                                <i class="bi bi-inbox" style="font-size: 2rem;"></i>
+                                <p class="mt-2">데이터가 없습니다.</p>
+                                <a href="/upload" class="btn btn-primary">
+                                    <i class="bi bi-upload"></i> 파일 업로드하기
+                                </a>
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+// 전역 변수
+let allRows = [];
+
+// 페이지 로드 시 초기화
+document.addEventListener('DOMContentLoaded', function() {
+    allRows = Array.from(document.querySelectorAll('#table-body tr[data-id]'));
+    
+    // 이벤트 리스너 등록
+    document.getElementById('search-input').addEventListener('input', applyFilters);
+    document.getElementById('filter-vendor').addEventListener('change', applyFilters);
+    document.getElementById('filter-date-start').addEventListener('change', applyFilters);
+    document.getElementById('filter-date-end').addEventListener('change', applyFilters);
+});
+
+// 필터 적용
+function applyFilters() {
+    const searchText = document.getElementById('search-input').value.toLowerCase();
+    const filterVendor = document.getElementById('filter-vendor').value;
+    const dateStart = document.getElementById('filter-date-start').value;
+    const dateEnd = document.getElementById('filter-date-end').value;
+    
+    let visibleCount = 0;
+    
+    allRows.forEach(row => {
+        const searchContent = row.getAttribute('data-search').toLowerCase();
+        const vendor = row.getAttribute('data-vendor');
+        const date = row.getAttribute('data-date');
+        
+        let show = true;
+        
+        // 검색어 필터
+        if (searchText && !searchContent.includes(searchText)) {
+            show = false;
+        }
+        
+        // 예매처 필터
+        if (filterVendor && vendor !== filterVendor) {
+            show = false;
+        }
+        
+        // 날짜 필터
+        if (dateStart && date < dateStart) {
+            show = false;
+        }
+        if (dateEnd && date > dateEnd) {
+            show = false;
+        }
+        
+        row.style.display = show ? '' : 'none';
+        if (show) {
+            visibleCount++;
+            // 번호 재정렬
+            row.querySelector('td:first-child').textContent = visibleCount;
+        }
+    });
+    
+    // 필터링된 개수 업데이트
+    document.getElementById('filtered-count').textContent = visibleCount;
+    
+    // 데이터 없음 메시지
+    const noDataRow = document.getElementById('no-data-row');
+    if (noDataRow) {
+        noDataRow.style.display = visibleCount === 0 ? '' : 'none';
+    }
+}
+
+// 필터 초기화
+function resetFilters() {
+    document.getElementById('search-input').value = '';
+    document.getElementById('filter-vendor').value = '';
+    document.getElementById('filter-date-start').value = '';
+    document.getElementById('filter-date-end').value = '';
+    applyFilters();
+}
+
+// 엑셀 다운로드
+function downloadExcel() {
+    window.location.href = '/api/export/excel';
+}
+
+// 개별 예매 삭제
+async function deleteReservation(id) {
+    if (!confirm('이 예매를 삭제하시겠습니까?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/reservation/${id}`, {
+            method: 'DELETE'
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // 해당 행 제거
+            const row = document.querySelector(`tr[data-id="${id}"]`);
+            if (row) {
+                row.remove();
+                allRows = allRows.filter(r => r !== row);
+            }
+            
+            // 카운트 업데이트
+            updateStats();
+            applyFilters();
+            
+            alert('삭제되었습니다.');
+        } else {
+            alert('삭제 실패: ' + data.message);
+        }
+    } catch (error) {
+        alert('오류 발생: ' + error.message);
+    }
+}
+
+// 전체 삭제
+async function deleteAll() {
+    if (!confirm('⚠️ 모든 예매 데이터를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다!')) {
+        return;
+    }
+    
+    if (!confirm('정말로 전체 삭제하시겠습니까?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/reservations/delete-all', {
+            method: 'DELETE'
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert(`${data.deleted}개의 예매가 삭제되었습니다.`);
+            location.reload();
+        } else {
+            alert('삭제 실패: ' + data.message);
+        }
+    } catch (error) {
+        alert('오류 발생: ' + error.message);
+    }
+}
+
+// 통계 업데이트
+function updateStats() {
+    fetch('/api/stats')
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('total-stat').textContent = data.total;
+            document.getElementById('yes24-stat').textContent = data.yes24;
+            document.getElementById('interpark-stat').textContent = data.interpark;
+            document.getElementById('ticketlink-stat').textContent = data.ticketlink;
+        });
+}
+</script>
+{% endblock %}
