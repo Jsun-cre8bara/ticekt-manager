@@ -123,10 +123,29 @@ def get_stats():
     try:
         total = session.query(Reservation).count()
         
-        # 예매처별 카운트
-        yes24_count = session.query(Reservation).filter_by(출처='YES24').count()
-        interpark_count = session.query(Reservation).filter_by(출처='인터파크').count()
-        ticketlink_count = session.query(Reservation).filter_by(출처='티켓링크').count()
+        # 예매처별 카운트 (대소문자 및 다양한 형식 지원)
+        from sqlalchemy import func, or_
+        
+        yes24_count = session.query(Reservation).filter(
+            or_(
+                func.lower(Reservation.출처) == 'yes24',
+                Reservation.출처 == 'YES24'
+            )
+        ).count()
+        
+        interpark_count = session.query(Reservation).filter(
+            or_(
+                func.lower(Reservation.출처) == 'interpark',
+                Reservation.출처 == '인터파크'
+            )
+        ).count()
+        
+        ticketlink_count = session.query(Reservation).filter(
+            or_(
+                func.lower(Reservation.출처) == 'ticketlink',
+                Reservation.출처 == '티켓링크'
+            )
+        ).count()
         
         return jsonify({
             'total': total,
@@ -136,7 +155,6 @@ def get_stats():
         })
     finally:
         session.close()
-
 
 # ========== API: 개별 예매 삭제 ==========
 @app.route('/api/reservation/<int:reservation_id>', methods=['DELETE'])
