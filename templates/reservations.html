@@ -261,17 +261,14 @@ function matchName(searchValue, dataValue) {
     searchValue = searchValue.trim();
     dataValue = dataValue.trim();
     
-    // 정확히 일치
     if (dataValue === searchValue) return true;
     
-    // 데이터에 *가 있는 경우 (예: 홍*동)
     if (dataValue.includes('*')) {
         const pattern = dataValue.replace(/\*/g, '.');
         const regex = new RegExp('^' + pattern + '$');
         return regex.test(searchValue);
     }
     
-    // 부분 일치
     return dataValue.includes(searchValue);
 }
 
@@ -279,28 +276,51 @@ function matchName(searchValue, dataValue) {
 function matchPhone(searchValue, dataValue) {
     if (!searchValue || !dataValue) return false;
     
-    // 숫자만 추출
     const phoneDigits = dataValue.replace(/[^0-9]/g, '');
     const searchDigits = searchValue.replace(/[^0-9]/g, '');
     
     if (searchDigits.length === 0) return false;
     
-    // 뒷4자리 추출 후 비교
     if (phoneDigits.length >= 4) {
         const lastFour = phoneDigits.slice(-4);
-        return lastFour === searchDigits || lastFour.endsWith(searchDigits);
+        return lastFour === searchDigits || lastFour.includes(searchDigits);
     }
     
     return false;
 }
 
-// 필터 적용 (검색 버튼 클릭 시에만 실행)
+// 검색값 매칭 함수 (검색조건에 따라)
+function matchSearchValue(searchType, searchValue, name, phone, ticketNo) {
+    if (!searchValue) return true;
+    
+    switch (searchType) {
+        case 'all':
+            // 전체: 이름, 전화번호, 예매번호 중 하나라도 매칭
+            return matchName(searchValue, name) || 
+                   matchPhone(searchValue, phone) || 
+                   ticketNo.toLowerCase().includes(searchValue.toLowerCase());
+        case 'name':
+            return matchName(searchValue, name);
+        case 'phone':
+            return matchPhone(searchValue, phone);
+        case 'ticket':
+            return ticketNo.toLowerCase().includes(searchValue.toLowerCase());
+        default:
+            return true;
+    }
+}
+
+// 필터 적용
 function applyFilters() {
-    const searchType = document.getElementById('search-type').value;
-    const searchValue = document.getElementById('search-input').value.trim();
     const filterVendor = document.getElementById('filter-vendor').value;
     const dateStart = document.getElementById('filter-date-start').value;
     const dateEnd = document.getElementById('filter-date-end').value;
+    const searchType = document.getElementById('search-type').value;
+    const searchValue = document.getElementById('search-input').value.trim();
+    
+    const andVendor = document.getElementById('and-vendor').checked;
+    const andDate = document.getElementById('and-date').checked;
+    const andSearch = document.getElementById('and-search').checked;
     
     let visibleCount = 0;
     
@@ -308,53 +328,92 @@ function applyFilters() {
         const vendor = row.getAttribute('data-vendor') || '';
         const date = row.getAttribute('data-date') || '';
         
-        // 테이블 셀에서 직접 데이터 추출
         const cells = row.querySelectorAll('td');
         const name = cells[4]?.textContent?.trim() || '';
         const ticketNo = cells[5]?.textContent?.trim() || '';
         const phone = cells[8]?.textContent?.trim() || '';
         
-        let show = true;
+        // 각 조건 매칭 결과
+        let vendorMatch = true;
+        let dateMatch = true;
+        let searchMatch = true;
         
-        // 예매처 필터 (대소문자 무시 비교)
+        // 예매처 조건
         if (filterVendor) {
-            const vendorLower = vendor.toLowerCase();
-            const filterLower = filterVendor.toLowerCase();
-            if (vendorLower !== filterLower) {
-                show = false;
+            vendorMatch = vendor.toLowerCase() === filterVendor.toLowerCase();
+        }
+        
+        // 날짜 조건
+        if (dateStart || dateEnd) {
+            if (dateStart && date < dateStart) {
+                dateMatch = false;
+            }
+            if (dateEnd && date > dateEnd) {
+                dateMatch = false;
             }
         }
         
-        // 날짜 필터
-        if (show && dateStart && date) {
-            if (date < dateStart) {
-                show = false;
-            }
-        }
-        if (show && dateEnd && date) {
-            if (date > dateEnd) {
-                show = false;
-            }
+        // 검색값 조건
+        if (searchValue) {
+            searchMatch = matchSearchValue(searchType, searchValue, name, phone, ticketNo);
         }
         
-        // 검색조건 필터
-        if (show && searchValue) {
-            switch (searchType) {
-                case 'name':
-                    if (!matchName(searchValue, name)) {
-                        show = false;
-                    }
-                    break;
-                case 'phone':
-                    if (!matchPhone(searchValue, phone)) {
-                        show = false;
-                    }
-                    break;
-                case 'ticket':
-                    if (!ticketNo.toLowerCase().includes(searchValue.toLowerCase())) {
-                        show = false;
-                    }
-                    break;
+        // AND/OR 조합
+        let show = false;
+        
+        if (andVendor && andDate && andSearch) {
+            // 모두 AND: 모든 조건 만족해야 함
+            show = vendorMatch && dateMatch && searchMatch;
+        } else if (!andVendor && !andDate && !andSearch) {
+            // 모두 OR: 하나라도 만족하면 표시
+            const hasVendorFilter = filterVendor !== '';
+            const hasDateFilter = dateStart !== '' || dateEnd !== '';
+            const hasSearchFilter = searchValue !== '';
+            
+            if (!hasVendorFilter && !hasDateFilter && !hasSearchFilter) {
+                show = true;
+            } else {
+                show = (hasVendorFilter && vendorMatch) || 
+                       (hasDateFilter && dateMatch) || 
+                       (hasSearchFilter && searchMatch);
+            }
+        } else {
+            // 혼합: AND 체크된 것들은 AND, OR인 것들은 OR
+            let andConditions = true;
+            let orConditions = false;
+            let hasOrCondition = false;
+            
+            if (filterVendor) {
+                if (andVendor) {
+                    andConditions = andConditions && vendorMatch;
+                } else {
+                    hasOrCondition = true;
+                    orConditions = orConditions || vendorMatch;
+                }
+            }
+            
+            if (dateStart || dateEnd) {
+                if (andDate) {
+                    andConditions = andConditions && dateMatch;
+                } else {
+                    hasOrCondition = true;
+                    orConditions = orConditions || dateMatch;
+                }
+            }
+            
+            if (searchValue) {
+                if (andSearch) {
+                    andConditions = andConditions && searchMatch;
+                } else {
+                    hasOrCondition = true;
+                    orConditions = orConditions || searchMatch;
+                }
+            }
+            
+            if (hasOrCondition) {
+                show = andConditions && orConditions;
+            } else {
+                show = andConditions;
             }
         }
         
@@ -371,10 +430,13 @@ function applyFilters() {
 // 필터 초기화
 function resetFilters() {
     document.getElementById('search-input').value = '';
-    document.getElementById('search-type').value = 'name';
+    document.getElementById('search-type').value = 'all';
     document.getElementById('filter-vendor').value = '';
     document.getElementById('filter-date-start').value = '';
     document.getElementById('filter-date-end').value = '';
+    document.getElementById('and-vendor').checked = true;
+    document.getElementById('and-date').checked = true;
+    document.getElementById('and-search').checked = true;
     
     allRows.forEach((row, index) => {
         row.style.display = '';
