@@ -25,10 +25,12 @@ def parse_yes24(파일경로):
     """
     YES24 예매내역 엑셀 파일 파싱
     좌석별로 각각 행 생성 (동일인 여러 좌석 → 연속 행으로 표시)
+    티켓번호는 원본 유지, 중복 체크는 티켓번호+좌석으로
     """
     print("📥 YES24 파일 분석 중...")
     xlsx = pd.ExcelFile(파일경로)
     결과목록 = []
+    처리된_조합 = set()  # 중복 방지용
     
     for sheet_name in xlsx.sheet_names:
         df = pd.read_excel(xlsx, sheet_name=sheet_name, header=None)
@@ -63,25 +65,32 @@ def parse_yes24(파일경로):
             전화번호 = str(row[4])
             티켓번호_str = str(티켓번호)
             
-            # 각 좌석을 별도 행으로 추가 (티켓번호에 좌석 추가하여 유니크하게)
+            # 중복 체크: 티켓번호 + 좌석정보 조합
+            중복키 = f"{티켓번호_str}_{좌석정보}"
+            
+            if 중복키 in 처리된_조합:
+                continue
+            처리된_조합.add(중복키)
+            
+            # 티켓번호는 원본 유지, DB 저장용 유니크 키는 별도로
             결과목록.append({
                 '공연명': 공연명,
                 '공연일': 공연일,
                 '회차정보': 회차정보,
                 '예매자': 예매자,
-                '티켓번호': f"{티켓번호_str}_{좌석정보}",
+                '티켓번호': 중복키,  # DB 유니크 키 (티켓번호_좌석)
+                '티켓번호_원본': 티켓번호_str,  # 화면 표시용
                 '좌석정보': 좌석정보,
                 '가격': 가격,
                 '전화번호': 전화번호,
                 '출처': 'YES24'
             })
     
-    # 동일인 연속 정렬 (예매자+전화번호 기준)
-    결과목록.sort(key=lambda x: (x['예매자'], x['전화번호'], x['좌석정보']))
+    # 동일인 연속 정렬 (예매자 > 티켓번호 > 좌석정보)
+    결과목록.sort(key=lambda x: (x['예매자'], x['티켓번호_원본'], x['좌석정보']))
     
     print(f"  ✅ YES24 총 {len(결과목록)}건 추출")
     return 결과목록
-
 
 # ========== 인터파크 파서 ==========
 def parse_interpark(파일경로):
@@ -193,7 +202,7 @@ def parse_ticketlink(파일경로):
     print("📥 티켓링크 파일 분석 중...")
     df = pd.read_excel(파일경로, header=None)
     
-    # 공연명 추출
+    # 공연명 추출 (2행)
     공연명_원본 = str(df.iloc[1, 0]).replace('상품명 : ', '')
     공연명 = 공연명정규화(공연명_원본)
     print(f"  공연명: {공연명[:30]}...")
@@ -201,39 +210,59 @@ def parse_ticketlink(파일경로):
     결과목록 = []
     처리된_조합 = set()  # 중복 방지
     
-    # 데이터 행 추출
+    # 데이터 행 추출 (7행부터 = 인덱스 6)
     for i in range(6, len(df)):
         row = df.iloc[i]
         
+        # 번호 컬럼(A열)이 비어있으면 건너뛰기
         if pd.isna(row[0]):
             continue
         
-        관람일_원본 = str(row[0])
-        회차시간 = str(row[1])
-        예매번호 = str(row[2]).split(' ')[0]
-        성명 = str(row[3]) if pd.notna(row[3]) else "미제공"
-        연락처 = str(row[4]) if pd.notna(row[4]) else "미제공"
-        권종 = str(row[9]) if pd.notna(row[9]) else ""
-        좌석번호_원본 = row[10]
+        # 컬럼 인덱스 수정 (A열이 번호이므로 1씩 밀림)
+        관람일_원본 = str(row[1]) if pd.notna(row[1]) else ""  # B열: 관람일
+        회차시간 = str(row[2]) if pd.notna(row[2]) else ""     # C열: 회차/시간
+        예매번호_원본 = str(row[3]) if pd.notna(row[3]) else "" # D열: 예매번호
+        성명 = str(row[4]) if pd.notna(row[4]) else "미제공"   # E열: 성명
+        연락처 = str(row[5]) if pd.notna(row[5]) else "미제공" # F열: 연락처
+        권종 = str(row[10]) if pd.notna(row[10]) else ""       # K열: 권종
+        좌석번호_원본 = row[11] if len(row) > 11 else None      # L열: 좌석번호
         
-        # 날짜 형식 변환
+        # 관람일이 비어있으면 건너뛰기
+        if not 관람일_원본 or 관람일_원본 == 'nan':
+            continue
+        
+        # 예매번호에서 괄호 앞 번호만 추출
+        예매번호 = 예매번호_원본.split(' ')[0] if 예매번호_원본 else ""
+        
+        # 날짜 형식 변환 (2022.11.19 → 2022-11-19)
         공연일 = 관람일_원본.replace('.', '-')
         
-        # 회차/시간 분리
-        회차번호 = 회차시간.split('/')[0] if '/' in 회차시간 else "1"
-        공연시간 = 회차시간.split('/')[1] if '/' in 회차시간 else 회차시간
+        # 회차/시간 분리 (1/14:00 → 1회차 14:00)
+        if '/' in 회차시간:
+            회차번호 = 회차시간.split('/')[0]
+            공연시간 = 회차시간.split('/')[1]
+        else:
+            회차번호 = "1"
+            공연시간 = 회차시간
         회차정보 = f"{회차번호}회차 {공연시간}"
         
-        # 좌석 분리 (쉼표로 구분된 복수 좌석)
+        # 좌석 분리
         좌석정보_str = str(좌석번호_원본) if pd.notna(좌석번호_원본) else "비지정석"
-        좌석정보_str = re.sub(r'\(\d+\)', '', 좌석정보_str).strip()  # 매수 표시 제거
         
         # 쉼표로 분리
-        좌석목록 = [s.strip() for s in 좌석정보_str.split(',') if s.strip()]
+        좌석목록_원본 = [s.strip() for s in 좌석정보_str.split(',') if s.strip()]
+        
+        # 각 좌석에서 (숫자) 제거
+        좌석목록 = []
+        for 좌석 in 좌석목록_원본:
+            좌석_정리 = re.sub(r'\(\d+\)', '', 좌석).strip()
+            if 좌석_정리:
+                좌석목록.append(좌석_정리)
         
         if not 좌석목록:
             좌석목록 = ["비지정석"]
         
+        # 각 좌석별로 행 생성
         for 좌석 in 좌석목록:
             중복키 = f"{예매번호}_{좌석}"
             
@@ -258,7 +287,6 @@ def parse_ticketlink(파일경로):
     
     print(f"  ✅ 티켓링크 총 {len(결과목록)}건 추출")
     return 결과목록
-
 
 # ========== 데이터베이스 저장 ==========
 def save_to_database(데이터목록, 예매처):
