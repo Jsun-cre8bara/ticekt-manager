@@ -51,25 +51,25 @@
 <div class="row mb-4" id="stats-section">
     <div class="col-md-3">
         <div class="stats-box">
-            <h3 id="total-stat">{{ reservations|length }}</h3>
+            <h3 id="total-stat">-</h3>
             <p>전체 예매</p>
         </div>
     </div>
     <div class="col-md-3">
         <div class="stats-box">
-            <h3 id="yes24-stat">{{ reservations|selectattr('출처', 'equalto', 'YES24')|list|length }}</h3>
+            <h3 id="yes24-stat">-</h3>
             <p>YES24</p>
         </div>
     </div>
     <div class="col-md-3">
         <div class="stats-box">
-            <h3 id="interpark-stat">{{ reservations|selectattr('출처', 'equalto', '인터파크')|list|length }}</h3>
+            <h3 id="interpark-stat">-</h3>
             <p>인터파크</p>
         </div>
     </div>
     <div class="col-md-3">
         <div class="stats-box">
-            <h3 id="ticketlink-stat">{{ reservations|selectattr('출처', 'equalto', '티켓링크')|list|length }}</h3>
+            <h3 id="ticketlink-stat">-</h3>
             <p>티켓링크</p>
         </div>
     </div>
@@ -520,5 +520,9 @@ function updateStats() {
             document.getElementById('ticketlink-stat').textContent = data.ticketlink;
         });
 }
+// 페이지 로드 시 통계 업데이트
+document.addEventListener('DOMContentLoaded', function() {
+    updateStats();
+});
 </script>
 {% endblock %}
