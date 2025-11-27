@@ -225,17 +225,51 @@ let allRows = [];
 // 페이지 로드 시 초기화
 document.addEventListener('DOMContentLoaded', function() {
     allRows = Array.from(document.querySelectorAll('#table-body tr[data-id]'));
-    
-    // 이벤트 리스너 등록
-    document.getElementById('search-input').addEventListener('input', applyFilters);
-    document.getElementById('filter-vendor').addEventListener('change', applyFilters);
-    document.getElementById('filter-date-start').addEventListener('change', applyFilters);
-    document.getElementById('filter-date-end').addEventListener('change', applyFilters);
 });
+
+// 이름 매칭 함수 (데이터에 *가 있는 경우 처리)
+function matchName(searchValue, dataValue) {
+    if (!searchValue || !dataValue) return false;
+    
+    searchValue = searchValue.trim().toLowerCase();
+    dataValue = dataValue.trim().toLowerCase();
+    
+    // 정확히 일치
+    if (dataValue === searchValue) return true;
+    
+    // 데이터에 *가 있는 경우 (예: 홍*동)
+    if (dataValue.includes('*')) {
+        // *를 정규식 .로 변환 (아무 글자 1개 매칭)
+        const pattern = dataValue.replace(/\*/g, '.');
+        const regex = new RegExp('^' + pattern + '$');
+        return regex.test(searchValue);
+    }
+    
+    // 부분 일치
+    return dataValue.includes(searchValue);
+}
+
+// 전화번호 뒷4자리 매칭 함수
+function matchPhone(searchValue, dataValue) {
+    if (!searchValue || !dataValue) return false;
+    
+    // 숫자만 추출
+    const phoneDigits = dataValue.replace(/[^0-9]/g, '');
+    const searchDigits = searchValue.replace(/[^0-9]/g, '');
+    
+    // 뒷4자리 비교
+    if (phoneDigits.length >= 4 && searchDigits.length >= 1) {
+        const lastFour = phoneDigits.slice(-4);
+        return lastFour.includes(searchDigits);
+    }
+    
+    return false;
+}
 
 // 필터 적용
 function applyFilters() {
-    const searchText = document.getElementById('search-input').value.toLowerCase();
+    const searchType = document.getElementById('search-type').value;
+    const searchValue = document.getElementById('search-input').value.trim();
     const filterVendor = document.getElementById('filter-vendor').value;
     const dateStart = document.getElementById('filter-date-start').value;
     const dateEnd = document.getElementById('filter-date-end').value;
@@ -243,28 +277,46 @@ function applyFilters() {
     let visibleCount = 0;
     
     allRows.forEach(row => {
-        const searchContent = row.getAttribute('data-search').toLowerCase();
         const vendor = row.getAttribute('data-vendor');
         const date = row.getAttribute('data-date');
+        const name = row.querySelector('td:nth-child(5)')?.textContent || '';
+        const ticketNo = row.querySelector('td:nth-child(6)')?.textContent || '';
+        const phone = row.querySelector('td:nth-child(9)')?.textContent || '';
         
         let show = true;
         
-        // 검색어 필터
-        if (searchText && !searchContent.includes(searchText)) {
-            show = false;
-        }
-        
-        // 예매처 필터
+        // 예매처 필터 (AND 조건)
         if (filterVendor && vendor !== filterVendor) {
             show = false;
         }
         
-        // 날짜 필터
+        // 날짜 필터 (AND 조건)
         if (dateStart && date < dateStart) {
             show = false;
         }
         if (dateEnd && date > dateEnd) {
             show = false;
+        }
+        
+        // 검색조건 필터 (AND 조건)
+        if (searchValue && show) {
+            switch (searchType) {
+                case 'name':
+                    if (!matchName(searchValue, name)) {
+                        show = false;
+                    }
+                    break;
+                case 'phone':
+                    if (!matchPhone(searchValue, phone)) {
+                        show = false;
+                    }
+                    break;
+                case 'ticket':
+                    if (!ticketNo.toLowerCase().includes(searchValue.toLowerCase())) {
+                        show = false;
+                    }
+                    break;
+            }
         }
         
         row.style.display = show ? '' : 'none';
@@ -281,17 +333,25 @@ function applyFilters() {
     // 데이터 없음 메시지
     const noDataRow = document.getElementById('no-data-row');
     if (noDataRow) {
-        noDataRow.style.display = visibleCount === 0 ? '' : 'none';
+        noDataRow.style.display = visibleCount === 0 && allRows.length > 0 ? '' : 'none';
     }
 }
 
 // 필터 초기화
 function resetFilters() {
     document.getElementById('search-input').value = '';
+    document.getElementById('search-type').value = 'name';
     document.getElementById('filter-vendor').value = '';
     document.getElementById('filter-date-start').value = '';
     document.getElementById('filter-date-end').value = '';
-    applyFilters();
+    
+    // 모든 행 표시
+    allRows.forEach((row, index) => {
+        row.style.display = '';
+        row.querySelector('td:first-child').textContent = index + 1;
+    });
+    
+    document.getElementById('filtered-count').textContent = allRows.length;
 }
 
 // 엑셀 다운로드
@@ -313,17 +373,13 @@ async function deleteReservation(id) {
         const data = await response.json();
         
         if (data.success) {
-            // 해당 행 제거
             const row = document.querySelector(`tr[data-id="${id}"]`);
             if (row) {
                 row.remove();
                 allRows = allRows.filter(r => r !== row);
             }
-            
-            // 카운트 업데이트
             updateStats();
             applyFilters();
-            
             alert('삭제되었습니다.');
         } else {
             alert('삭제 실패: ' + data.message);
