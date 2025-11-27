@@ -78,10 +78,6 @@
 <!-- 필터 및 검색 -->
 <div class="filter-section">
     <div class="row">
-        <div class="col-md-3">
-            <label class="form-label">검색</label>
-            <input type="text" class="form-control" id="search-input" placeholder="공연명, 예매자, 티켓번호...">
-        </div>
         <div class="col-md-2">
             <label class="form-label">예매처</label>
             <select class="form-select" id="filter-vendor">
@@ -99,15 +95,42 @@
             <label class="form-label">공연일 종료</label>
             <input type="date" class="form-control" id="filter-date-end">
         </div>
-       <div class="col-md-3">
-    <label class="form-label">&nbsp;</label>
-    <div class="d-grid gap-2 d-md-flex">
-        <button class="btn btn-primary me-2" onclick="applyFilters()">
-            <i class="bi bi-search"></i> 검색
-        </button>
-        <button class="btn btn-secondary" onclick="resetFilters()">
-            <i class="bi bi-arrow-clockwise"></i> 초기화
-        </button>
+        <div class="col-md-2">
+            <label class="form-label">검색조건</label>
+            <select class="form-select" id="search-type">
+                <option value="name">이름</option>
+                <option value="phone">전화번호(뒷4자리)</option>
+                <option value="ticket">티켓번호</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">검색값</label>
+            <input type="text" class="form-control" id="search-input" placeholder="검색어 입력...">
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">&nbsp;</label>
+            <div class="d-grid gap-2 d-md-flex">
+                <button class="btn btn-primary me-2" onclick="applyFilters()">
+                    <i class="bi bi-search"></i> 검색
+                </button>
+                <button class="btn btn-secondary" onclick="resetFilters()">
+                    <i class="bi bi-arrow-clockwise"></i> 초기화
+                </button>
+            </div>
+        </div>
+    </div>
+    <div class="row mt-3">
+        <div class="col-md-12">
+            <button class="btn btn-success" onclick="downloadExcel()">
+                <i class="bi bi-file-earmark-excel"></i> 엑셀 다운로드
+            </button>
+            <button class="btn btn-danger ms-2" onclick="deleteAll()" id="delete-all-btn">
+                <i class="bi bi-trash"></i> 전체 삭제
+            </button>
+            <span class="ms-3 text-muted">
+                <strong id="filtered-count">{{ reservations|length }}</strong>개 표시 중
+            </span>
+        </div>
     </div>
 </div>
     </div>
