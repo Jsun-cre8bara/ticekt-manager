@@ -77,8 +77,8 @@
 
 <!-- 필터 및 검색 -->
 <div class="filter-section">
-    <div class="row">
-        <div class="col-md-2">
+    <div class="row align-items-end">
+        <div class="col-md-1">
             <label class="form-label">예매처</label>
             <select class="form-select" id="filter-vendor">
                 <option value="">전체</option>
@@ -86,6 +86,13 @@
                 <option value="인터파크">인터파크</option>
                 <option value="티켓링크">티켓링크</option>
             </select>
+        </div>
+        <div class="col-auto">
+            <label class="form-label d-block">&nbsp;</label>
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="and-vendor" checked>
+                <label class="form-check-label" for="and-vendor">AND</label>
+            </div>
         </div>
         <div class="col-md-2">
             <label class="form-label">공연일 시작</label>
@@ -95,28 +102,41 @@
             <label class="form-label">공연일 종료</label>
             <input type="date" class="form-control" id="filter-date-end">
         </div>
-        <div class="col-md-2">
+        <div class="col-auto">
+            <label class="form-label d-block">&nbsp;</label>
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="and-date" checked>
+                <label class="form-check-label" for="and-date">AND</label>
+            </div>
+        </div>
+        <div class="col-md-1">
             <label class="form-label">검색조건</label>
             <select class="form-select" id="search-type">
+                <option value="all">전체</option>
                 <option value="name">이름</option>
-                <option value="phone">전화번호(뒷4자리)</option>
-                <option value="ticket">티켓번호</option>
+                <option value="phone">전화번호</option>
+                <option value="ticket">예매번호</option>
             </select>
+        </div>
+        <div class="col-auto">
+            <label class="form-label d-block">&nbsp;</label>
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="and-search" checked>
+                <label class="form-check-label" for="and-search">AND</label>
+            </div>
         </div>
         <div class="col-md-2">
             <label class="form-label">검색값</label>
             <input type="text" class="form-control" id="search-input" placeholder="검색어 입력...">
         </div>
-        <div class="col-md-2">
-            <label class="form-label">&nbsp;</label>
-            <div class="d-grid gap-2 d-md-flex">
-                <button class="btn btn-primary me-2" onclick="applyFilters()">
-                    <i class="bi bi-search"></i> 검색
-                </button>
-                <button class="btn btn-secondary" onclick="resetFilters()">
-                    <i class="bi bi-arrow-clockwise"></i> 초기화
-                </button>
-            </div>
+        <div class="col-auto">
+            <label class="form-label d-block">&nbsp;</label>
+            <button class="btn btn-primary me-2" onclick="applyFilters()">
+                <i class="bi bi-search"></i> 검색
+            </button>
+            <button class="btn btn-secondary" onclick="resetFilters()">
+                <i class="bi bi-arrow-clockwise"></i> 초기화
+            </button>
         </div>
     </div>
     <div class="row mt-3">
