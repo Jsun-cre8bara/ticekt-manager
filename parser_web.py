@@ -202,7 +202,7 @@ def parse_ticketlink(파일경로):
     print("📥 티켓링크 파일 분석 중...")
     df = pd.read_excel(파일경로, header=None)
     
-    # 공연명 추출 (2행)
+    # 공연명 추출 (2행, 인덱스 1)
     공연명_원본 = str(df.iloc[1, 0]).replace('상품명 : ', '')
     공연명 = 공연명정규화(공연명_원본)
     print(f"  공연명: {공연명[:30]}...")
@@ -214,24 +214,24 @@ def parse_ticketlink(파일경로):
     for i in range(6, len(df)):
         row = df.iloc[i]
         
-        # 번호 컬럼(A열)이 비어있으면 건너뛰기
+        # 관람일이 비어있으면 건너뛰기
         if pd.isna(row[0]):
             continue
         
-        # 컬럼 인덱스 수정 (A열이 번호이므로 1씩 밀림)
-        관람일_원본 = str(row[1]) if pd.notna(row[1]) else ""  # B열: 관람일
-        회차시간 = str(row[2]) if pd.notna(row[2]) else ""     # C열: 회차/시간
-        예매번호_원본 = str(row[3]) if pd.notna(row[3]) else "" # D열: 예매번호
-        성명 = str(row[4]) if pd.notna(row[4]) else "미제공"   # E열: 성명
-        연락처 = str(row[5]) if pd.notna(row[5]) else "미제공" # F열: 연락처
-        권종 = str(row[10]) if pd.notna(row[10]) else ""       # K열: 권종
-        좌석번호_원본 = row[11] if len(row) > 11 else None      # L열: 좌석번호
+        관람일_원본 = str(row[0])  # A열: 관람일
         
-        # 관람일이 비어있으면 건너뛰기
-        if not 관람일_원본 or 관람일_원본 == 'nan':
+        # 헤더 행 건너뛰기
+        if '관람일' in 관람일_원본:
             continue
         
-        # 예매번호에서 괄호 앞 번호만 추출
+        회차시간 = str(row[1]) if pd.notna(row[1]) else ""      # B열: 회차/시간
+        예매번호_원본 = str(row[2]) if pd.notna(row[2]) else "" # C열: 예매번호
+        성명 = str(row[3]) if pd.notna(row[3]) else "미제공"   # D열: 성명
+        연락처 = str(row[4]) if pd.notna(row[4]) else "미제공" # E열: 연락처
+        권종 = str(row[9]) if pd.notna(row[9]) else ""         # J열: 권종
+        좌석번호_원본 = row[10] if len(row) > 10 else None      # K열: 좌석번호
+        
+        # 예매번호에서 앞 번호만 추출 (0543 (330152096) → 0543)
         예매번호 = 예매번호_원본.split(' ')[0] if 예매번호_원본 else ""
         
         # 날짜 형식 변환 (2022.11.19 → 2022-11-19)
@@ -246,7 +246,7 @@ def parse_ticketlink(파일경로):
             공연시간 = 회차시간
         회차정보 = f"{회차번호}회차 {공연시간}"
         
-        # 좌석 분리
+        # 좌석 분리 (쉼표로 구분된 복수 좌석)
         좌석정보_str = str(좌석번호_원본) if pd.notna(좌석번호_원본) else "비지정석"
         
         # 쉼표로 분리
