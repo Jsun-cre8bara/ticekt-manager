@@ -57,24 +57,23 @@
     </div>
     <div class="col-md-3">
         <div class="stats-box">
-            <h3 id="yes24-stat">{{ reservations|selectattr('출처', 'equalto', 'YES24')|list|length }}</h3>
+            <h3 id="yes24-stat">{{ reservations|selectattr('출처', 'equalto', 'yes24')|list|length }}</h3>
             <p>YES24</p>
         </div>
     </div>
     <div class="col-md-3">
         <div class="stats-box">
-            <h3 id="interpark-stat">{{ reservations|selectattr('출처', 'equalto', '인터파크')|list|length }}</h3>
+            <h3 id="interpark-stat">{{ reservations|selectattr('출처', 'equalto', 'interpark')|list|length }}</h3>
             <p>인터파크</p>
         </div>
     </div>
     <div class="col-md-3">
         <div class="stats-box">
-            <h3 id="ticketlink-stat">{{ reservations|selectattr('출처', 'equalto', '티켓링크')|list|length }}</h3>
+            <h3 id="ticketlink-stat">{{ reservations|selectattr('출처', 'equalto', 'ticketlink')|list|length }}</h3>
             <p>티켓링크</p>
         </div>
     </div>
 </div>
-
 <!-- 필터 및 검색 -->
 <div class="filter-section">
     <div class="row align-items-end">
